@@ -1,0 +1,8 @@
+# Ignorar dependencias de Node
+/KMeans_Hospital_Frontend/node_modules
+
+# Ignorar caché, logs y archivos de sistema
+.DS_Store
+*.log
+npm-debug.log*
+/KMeans_Hospital_Backend/node_modules
