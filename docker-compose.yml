@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Backend - FastAPI con modelo K-Means
+  backend:
+    build:
+      context: ./KMeans_Model_Back
+      dockerfile: Dockerfile
+    container_name: kmeans-backend
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - kmeans-network
+    restart: unless-stopped
+
+  # Frontend - React con Vite
+  frontend:
+    build:
+      context: ./KMeans_Hospital_Frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+    container_name: kmeans-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - kmeans-network
+    restart: unless-stopped
+
+networks:
+  kmeans-network:
+    driver: bridge

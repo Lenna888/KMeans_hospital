@@ -1,14 +1,34 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Activity, TrendingUp, MapPin } from "lucide-react";
 
 interface MetricsPanelProps {
   optimalClusters: number;
-  totalNeighborhoods: number;
-  totalHospitals: number;
+  totalNeighborhoods: number; // Vecindarios (N)
+  totalHospitals: number; // Hospitales (K de Ejecución)
 }
 
-export const MetricsPanel = ({ optimalClusters, totalNeighborhoods, totalHospitals }: MetricsPanelProps) => {
-  const avgNeighborhoodsPerHospital = Math.round(totalNeighborhoods / totalHospitals);
+export const MetricsPanel = ({
+  optimalClusters,
+  totalNeighborhoods,
+  totalHospitals,
+}: MetricsPanelProps) => {
+
+  const avgNeighborhoodsPerHospital =
+    totalHospitals > 0 ? Math.round(totalNeighborhoods / totalHospitals) : 0;
+
+  // La eficiencia se evalúa comparando el k que el usuario usó (totalHospitals) contra el k óptimo calculado.
+  const efficiencyLabel =
+    totalHospitals === 0
+      ? "Baja"
+      : totalHospitals === optimalClusters
+      ? "Óptima"
+      : "Alta";
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -19,7 +39,8 @@ export const MetricsPanel = ({ optimalClusters, totalNeighborhoods, totalHospita
             Clusters Óptimos
           </CardDescription>
           <CardTitle className="text-3xl font-bold text-primary">
-            {optimalClusters}
+            {optimalClusters}{" "}
+            {/* Este valor viene del backend (Silhouette Score) */}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -53,7 +74,7 @@ export const MetricsPanel = ({ optimalClusters, totalNeighborhoods, totalHospita
             Eficiencia
           </CardDescription>
           <CardTitle className="text-3xl font-bold text-medical-green">
-            {totalHospitals >= optimalClusters ? "Alta" : "Media"}
+            {efficiencyLabel}
           </CardTitle>
         </CardHeader>
         <CardContent>

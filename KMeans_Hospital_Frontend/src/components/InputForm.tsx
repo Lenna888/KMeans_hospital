@@ -20,8 +20,8 @@ export const InputForm = ({ onSubmit, isLoading = false }: InputFormProps) => {
     const h = parseInt(hospitals);
     const n = parseInt(neighborhoods);
     const p = parseInt(planeSize);
-    
-    if (h > 0 && n > 0 && p > 0 && h <= n) {
+
+    if (h >= 1 && h <= 1000000 && n >= 2 && n <= 1000000 && p >= 1 && p <= 1000000) {
       onSubmit(h, n, p);
     }
   };
@@ -47,7 +47,7 @@ export const InputForm = ({ onSubmit, isLoading = false }: InputFormProps) => {
               id="hospitals"
               type="number"
               min="1"
-              max="10"
+              max="1000000"
               value={hospitals}
               onChange={(e) => setHospitals(e.target.value)}
               className="bg-background border-border"
@@ -63,8 +63,8 @@ export const InputForm = ({ onSubmit, isLoading = false }: InputFormProps) => {
             <Input
               id="neighborhoods"
               type="number"
-              min="10"
-              max="200"
+              min="2"
+              max="1000000"
               value={neighborhoods}
               onChange={(e) => setNeighborhoods(e.target.value)}
               className="bg-background border-border"
@@ -81,7 +81,7 @@ export const InputForm = ({ onSubmit, isLoading = false }: InputFormProps) => {
               id="planeSize"
               type="number"
               min="1"
-              max="10000000"
+              max="1000000000000"
               value={planeSize}
               onChange={(e) => setPlaneSize(e.target.value)}
               className="bg-background border-border"

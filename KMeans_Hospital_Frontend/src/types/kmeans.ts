@@ -2,6 +2,7 @@ export interface Point {
   x: number;
   y: number;
   id: number;
+  weight: number;
   cluster?: number;
 }
 

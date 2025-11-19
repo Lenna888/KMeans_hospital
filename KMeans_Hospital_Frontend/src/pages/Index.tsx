@@ -1,35 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { InputForm } from "@/components/InputForm";
 import { ScatterPlot } from "@/components/ScatterPlot";
 import { MetricsPanel } from "@/components/MetricsPanel";
-import { simulateKMeans } from "@/utils/kmeansSimulation";
+import { runKMeansAPI, checkAPIHealth } from "@/services/api";
 import { KMeansResult } from "@/types/kmeans";
 import { toast } from "sonner";
-import { Activity } from "lucide-react";
+import { Activity, AlertCircle } from "lucide-react";
 
 const Index = () => {
   const [result, setResult] = useState<KMeansResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [inputParams, setInputParams] = useState<{ hospitals: number; neighborhoods: number; planeSize: number } | null>(null);
+  const [backendStatus, setBackendStatus] = useState<"checking" | "connected" | "disconnected">("checking");
+
+  // Verificar conexión con el backend al cargar
+  useEffect(() => {
+    const checkBackend = async () => {
+      const isHealthy = await checkAPIHealth();
+      setBackendStatus(isHealthy ? "connected" : "disconnected");
+      if (!isHealthy) {
+        toast.error("No se puede conectar con el servidor backend");
+      }
+    };
+    checkBackend();
+  }, []);
 
   const handleSubmit = async (hospitals: number, neighborhoods: number, planeSize: number) => {
+    if (backendStatus !== "connected") {
+      toast.error("El servidor backend no está disponible");
+      return;
+    }
+
     setIsLoading(true);
     setInputParams({ hospitals, neighborhoods, planeSize });
-    
-    toast.info("Ejecutando algoritmo K-means...");
 
-    // Simular procesamiento
-    setTimeout(() => {
-      try {
-        const kmeansResult = simulateKMeans(neighborhoods, hospitals, planeSize);
-        setResult(kmeansResult);
-        toast.success("¡Análisis completado exitosamente!");
-      } catch (error) {
-        toast.error("Error al procesar los datos");
-      } finally {
-        setIsLoading(false);
-      }
-    }, 1500);
+    toast.info("Ejecutando algoritmo K-means en el servidor...");
+
+    try {
+      const kmeansResult = await runKMeansAPI(neighborhoods, hospitals, planeSize);
+      setResult(kmeansResult);
+      toast.success("¡Análisis completado exitosamente!");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al procesar los datos";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -46,6 +62,31 @@ const Index = () => {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Análisis inteligente de distribución de hospitales usando clustering K-means
           </p>
+          {/* Estado del backend */}
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <div
+              className={`w-3 h-3 rounded-full ${
+                backendStatus === "connected"
+                  ? "bg-green-500"
+                  : backendStatus === "disconnected"
+                  ? "bg-red-500"
+                  : "bg-yellow-500 animate-pulse"
+              }`}
+            />
+            <span className="text-sm text-muted-foreground">
+              {backendStatus === "connected"
+                ? "Backend conectado"
+                : backendStatus === "disconnected"
+                ? "Backend desconectado"
+                : "Verificando conexión..."}
+            </span>
+          </div>
+          {backendStatus === "disconnected" && (
+            <div className="flex items-center justify-center gap-2 text-red-500 text-sm mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <span>Asegúrate de que el servidor backend esté ejecutándose</span>
+            </div>
+          )}
         </div>
 
         {/* Input Form */}
