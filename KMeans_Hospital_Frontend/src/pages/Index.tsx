@@ -126,9 +126,9 @@ const Index = () => {
                 📊 Interpretación de Resultados
               </h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• <strong>Clusters Óptimos:</strong> Basado en el método del codo para minimizar la distancia intra-cluster</li>
+                <li>• <strong>Clusters Óptimos:</strong> Basado en el método de la silueta para minimizar la distancia intra-cluster</li>
                 <li>• <strong>Distribución de Colores:</strong> Cada color representa un cluster asignado a un hospital</li>
-                <li>• <strong>Hospitales (diamantes rojos):</strong> Ubicados en el centroide de cada cluster</li>
+                <li>• <strong>Ubicación Óptima (Hospitales):</strong> Punto geográfico ideal calculado para la ubicación de un hospital.</li>
                 <li>• <strong>Vecindarios (círculos):</strong> Asignados al hospital más cercano</li>
               </ul>
             </div>

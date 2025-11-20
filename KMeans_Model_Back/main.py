@@ -113,12 +113,19 @@ def inicializar_centroides(X, k):
     return X[indices].copy()
 
 def asignar_clusters(X, centroides):
-    n_samples = X.shape[0]
-    etiquetas = np.zeros(n_samples, dtype=int)
+    """
+    Asigna cada punto al centroide más cercano usando operaciones vectorizadas.
+    Optimizado para grandes datasets sin bucles Python.
+    """
+    # Calcula todas las distancias de una vez usando broadcasting de NumPy
+    # X shape: (n_samples, n_features)
+    # centroides shape: (k, n_features)
+    # distancias shape: (n_samples, k)
+    distancias = np.linalg.norm(X[:, np.newaxis] - centroides, axis=2)
 
-    for i in range(n_samples):
-        distancias = np.array([distancia_euclidiana(X[i], centroides[j]) for j in range(centroides.shape[0])])
-        etiquetas[i] = np.argmin(distancias)
+    # Encuentra el índice del centroide más cercano para cada punto
+    etiquetas = np.argmin(distancias, axis=1)
+
     return etiquetas
 
 def actualizar_centroides(X, W, etiquetas, k):
@@ -171,11 +178,17 @@ def kmeans(X, W, k, max_iter=300, tol=1e-4):
     }
 
 def calcular_sse(X, etiquetas, centroides):
-    sse = 0.0
-    for i in range(len(X)):
-        cluster_idx = etiquetas[i]
-        distancia = distancia_euclidiana(X[i], centroides[cluster_idx])
-        sse += distancia ** 2
+    """
+    Calcula la suma de errores cuadráticos (SSE) de forma vectorizada.
+    Optimizado para grandes datasets sin bucles Python.
+    """
+    # Obtiene los centroides asignados a cada punto usando indexación avanzada
+    centroides_asignados = centroides[etiquetas]
+
+    # Calcula las diferencias y suma los cuadrados
+    diferencias = X - centroides_asignados
+    sse = np.sum(diferencias ** 2)
+
     return sse
 
 
@@ -251,21 +264,30 @@ def calcular_silhouette_score(X, etiquetas, sample_size=None):
 
 def encontrar_k_optimo(X, W, n_samples: int):
     """
-    Encuentra el número óptimo de clusters (k) evaluando el Silhouette Score
-    en un rango de k de 2 hasta min(10, n_samples/2).
+    Encuentra el número óptimo de clusters (k) evaluando el Silhouette Score.
+    Optimizado para reducir el número de evaluaciones según el tamaño del dataset.
     """
-    # Rango de k a evaluar. Máximo 10, y nunca más que la mitad de las muestras.
-    max_k_eval = min(15, int(n_samples / 2)) 
-    k_range = range(2, max_k_eval + 1)
-    
+    # Ajusta dinámicamente el rango de k basado en el tamaño del dataset
+    if n_samples < 100:
+        max_k_eval = min(6, int(n_samples / 2))
+        step = 1
+    elif n_samples < 500:
+        max_k_eval = min(8, int(n_samples / 2))
+        step = 1
+    else:
+        max_k_eval = min(10, int(n_samples / 2))
+        step = 2  # Evalúa solo k pares (2, 4, 6, 8, 10) para grandes datasets
+
+    k_range = range(2, max_k_eval + 1, step)
+
     if len(k_range) < 1:
         return 1 if n_samples >= 1 else 0
 
     mejor_k = 2
-    mejor_silhouette = -float('inf') 
+    mejor_silhouette = -float('inf')
 
     # Usamos una semilla fija (42) para que la búsqueda del k óptimo sea reproducible
-    np.random.seed(42) 
+    np.random.seed(42)
 
     for k in k_range:
         try:
@@ -316,11 +338,12 @@ async def run_kmeans(request: KMeansRequest):
        
         if n_samples < 2:
              k_optimo_calculado = 1
-        elif n_samples > 1000:
+        elif n_samples > 2000:
+            # Para datasets muy grandes, usar heurística simple
             k_optimo_calculado = 5
         else:
             # Aseguramos que la semilla del request se use para que esta parte sea reproducible
-            np.random.seed(request.seed) 
+            np.random.seed(request.seed)
             k_optimo_calculado = encontrar_k_optimo(X, W, n_samples)
         
         # 3. VALIDACIÓN Y EJECUCIÓN DEL K-MEANS
@@ -335,11 +358,9 @@ async def run_kmeans(request: KMeansRequest):
         # 4. Cálculo de métricas
         silhouette = calcular_silhouette_score(X, resultado['etiquetas'], sample_size=min(500, n_samples))
 
-        distancias = []
-        for i in range(n_samples):
-            cluster_idx = resultado['etiquetas'][i]
-            dist = distancia_euclidiana(X[i], resultado['centroides'][cluster_idx])
-            distancias.append(dist)
+        # Cálculo vectorizado de distancias (optimización)
+        centroides_asignados = resultado['centroides'][resultado['etiquetas']]
+        distancias = np.linalg.norm(X - centroides_asignados, axis=1)
         
         # 5. Preparar Respuesta
         neighborhoods = [

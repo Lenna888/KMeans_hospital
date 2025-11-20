@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   ScatterChart,
   Scatter,
@@ -59,12 +60,32 @@ export const ScatterPlot = ({
   showClusters = false,
   planeSize,
 }: ScatterPlotProps) => {
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat("es-ES").format(Math.round(num));
-  };
-
   // 3. OBTENER K DINÁMICAMENTE
   const k = hospitals?.length || 0;
+
+  // Memoizar formateador de números (optimización)
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat("es-ES"),
+    []
+  );
+
+  const formatNumber = (num: number) => {
+    return numberFormatter.format(Math.round(num));
+  };
+
+  // Memoizar generación de colores de clusters (optimización)
+  const clusterColors = useMemo(() => {
+    if (k === 0) return [];
+    const colors = [];
+    for (let i = 0; i < k; i++) {
+      if (k <= CLUSTER_COLORS.length) {
+        colors.push(CLUSTER_COLORS[i]);
+      } else {
+        colors.push(generateClusterColor(i, k));
+      }
+    }
+    return colors;
+  }, [k]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -93,12 +114,47 @@ export const ScatterPlot = ({
     return null;
   };
 
-  // 4. PREPARAR DATOS (Añadir 'z' para el tamaño de la burbuja)
-  const neighborhoodData = neighborhoods.map((n) => ({
-    ...n,
-    type: "neighborhood",
-    z: 10,
-  }));
+  // 4. PREPARAR DATOS CON DOWNSAMPLING INTELIGENTE (Optimización)
+  const neighborhoodData = useMemo(() => {
+    const MAX_POINTS_TO_RENDER = 2000; // Límite de puntos a renderizar
+
+    let data = neighborhoods.map((n) => ({
+      ...n,
+      type: "neighborhood",
+      z: 10,
+    }));
+
+    // Si hay demasiados puntos, aplicar downsampling estratificado
+    if (data.length > MAX_POINTS_TO_RENDER) {
+      const sampledData: typeof data = [];
+
+      if (showClusters && k > 0) {
+        // Muestreo estratificado: tomar muestras proporcionales de cada cluster
+        const pointsPerCluster = Math.floor(MAX_POINTS_TO_RENDER / k);
+
+        for (let clusterId = 0; clusterId < k; clusterId++) {
+          const clusterPoints = data.filter((p) => p.cluster === clusterId);
+          const step = Math.max(1, Math.floor(clusterPoints.length / pointsPerCluster));
+
+          for (let i = 0; i < clusterPoints.length; i += step) {
+            if (sampledData.length < MAX_POINTS_TO_RENDER) {
+              sampledData.push(clusterPoints[i]);
+            }
+          }
+        }
+      } else {
+        // Muestreo uniforme si no hay clusters
+        const step = Math.floor(data.length / MAX_POINTS_TO_RENDER);
+        for (let i = 0; i < data.length; i += step) {
+          sampledData.push(data[i]);
+        }
+      }
+
+      return sampledData;
+    }
+
+    return data;
+  }, [neighborhoods, showClusters, k]);
 
   const hospitalData =
     hospitals?.map((h) => ({
@@ -113,9 +169,18 @@ export const ScatterPlot = ({
     return value.toString();
   };
 
+  const isDownsampled = neighborhoodData.length < neighborhoods.length;
+
   return (
     <div className="w-full h-[500px] bg-card rounded-lg p-4 shadow-lg border border-border">
-      <h3 className="text-lg font-semibold mb-4 text-foreground">{title}</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        {isDownsampled && (
+          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+            Mostrando {neighborhoodData.length} de {neighborhoods.length} vecindarios
+          </span>
+        )}
+      </div>
       <ResponsiveContainer width="100%" height="90%">
         <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 50 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -165,13 +230,8 @@ export const ScatterPlot = ({
               let cellFillColor = "hsl(var(--medical-blue))";
 
               if (showClusters && entry.cluster !== undefined && k > 0) {
-                // Usar paleta CSS estática para k <= 5, si está definida.
-                // Usar generación dinámica para k > 5 o si se prefiere.
-                if (k <= CLUSTER_COLORS.length) {
-                  cellFillColor = CLUSTER_COLORS[entry.cluster];
-                } else {
-                  cellFillColor = generateClusterColor(entry.cluster, k);
-                }
+                // Usar colores memoizados (optimización)
+                cellFillColor = clusterColors[entry.cluster] || cellFillColor;
               }
 
               return (
@@ -189,7 +249,7 @@ export const ScatterPlot = ({
             <Scatter
               name="Hospitales"
               data={hospitalData}
-              shape={<HospitalIcon size={30} imagePath="/public/hospital.png" />}
+              shape={<HospitalIcon size={30} imagePath="/hospital.png" />}
               fill="hsl(var(--hospital-red))"
             />
           )}
