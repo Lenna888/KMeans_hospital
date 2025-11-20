@@ -1,4 +1,4 @@
-### Optimización de Hospitales: Análisis de Distribución Geográfica
+# Optimización de Hospitales: Análisis de Distribución Geográfica
 ## Descripción del Proyecto
 Esta aplicación es un proyecto de ML diseñado para optimizar la ubicación de recursos (hospitales, centros de distribución, etc.) en un plano geográfico. Utiliza el algoritmo de K-Means Clustering Ponderado para agrupar vecindarios o zonas, basándose en su población (peso) y posición, determinando así los centros de servicio óptimos (los centroides).
 
